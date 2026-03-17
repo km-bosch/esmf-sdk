@@ -221,6 +221,76 @@ jobs:
           path: |
             samm-cli-${{ env.RELEASE_VERSION }}-macos-x86_64.tar.gz
 
+  build-macos-aarch64:
+    name: Mac build (Apple Silicon)
+    needs: [check-preconditions]
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Setup JDK
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e
+        with:
+          java-version: '25.0.1'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb #v5.0.1
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and run tests
+        run: |
+          export MAVEN_OPTS="-Xmx4096m"
+          export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
+          # Required for reactor dependencies
+          mvn clean install -DskipTests -Dmaven.javadoc.skip=true
+          mvn versions:set -DnewVersion=${RELEASE_VERSION}
+          mvn versions:commit
+          # Actual build of core SDK
+          mvn -B -pl '!org.eclipse.esmf:samm-cli' clean install -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
+          # Build samm-cli executable jar
+          unset JAVA_TOOL_OPTIONS
+          mvn -B -pl tools/samm-cli clean verify -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
+
+          # Build native binary
+          bundle="samm-cli-${RELEASE_VERSION}"
+          mkdir ${bundle}
+          curl -Lo jre.tar.gz https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.1%2B8/OpenJDK25U-jre_aarch64_mac_hotspot_25.0.1_8.tar.gz
+          tar -xvf jre.tar.gz
+          mv ./jdk-25.0.1+8-jre ./${bundle}/jre
+          cp tools/samm-cli/target/samm-cli-${RELEASE_VERSION}.jar ./${bundle}/
+          cp tools/samm-cli/scripts/macos/run.sh ./${bundle}/
+          chmod +x ./${bundle}/run.sh
+
+          curl -Lo warp-packer https://github.com/dgiagio/warp/releases/download/v0.3.0/macos-x64.warp-packer
+          if [ "$(sha256sum warp-packer | cut -d' ' -f1)" != "01d00038dbbe4e5a6e2ca19c1235f051617ac0e6e582d2407a06cec33125044b" ]; then
+            echo "Warp packer checksum does not match"
+            exit 1
+          fi
+          chmod +x warp-packer
+
+          ./warp-packer --arch macos-x64 --input_dir ${bundle} --exec run.sh --output samm
+          chmod a+x samm
+          tar cfvz samm-cli-${RELEASE_VERSION}-macos-aarch64.tar.gz samm
+        shell: bash
+
+      - name: Upload Mac Apple Silicon binary
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: mac-aarch64-artifacts
+          path: |
+            samm-cli-${{ env.RELEASE_VERSION }}-macos-aarch64.tar.gz
+
   # The Windows build will build the Windows-specific samm-cli
   # and upload the binary to the build artifacts
   build-windows:
@@ -311,7 +381,7 @@ jobs:
 
   release:
     name: Release
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, build-macos-aarch64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -354,6 +424,11 @@ jobs:
         with:
           name: mac-artifacts
 
+      - name: Fetch Mac Apple Silicon Artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 #v6.0.0
+        with:
+          name: mac-aarch64-artifacts
+
       - name: Set versions
         continue-on-error: true
         run: |
@@ -389,6 +464,7 @@ jobs:
           files: |
             samm-cli-${{ env.RELEASE_VERSION }}-linux-x86_64.tar.gz
             samm-cli-${{ env.RELEASE_VERSION }}-macos-x86_64.tar.gz
+            samm-cli-${{ env.RELEASE_VERSION }}-macos-aarch64.tar.gz
             samm-cli-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
@@ -506,6 +582,7 @@ jobs:
           files: |
             samm-cli-${{ env.RELEASE_VERSION }}-linux-x86_64.tar.gz
             samm-cli-${{ env.RELEASE_VERSION }}-macos-x86_64.tar.gz
+            samm-cli-${{ env.RELEASE_VERSION }}-macos-aarch64.tar.gz
             samm-cli-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
