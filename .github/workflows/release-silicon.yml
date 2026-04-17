@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-java@v5.2.0
         with:
           distribution: 'temurin'
-          java-version: '25.0.1'
+          java-version: '25.0.2'
           overwrite-settings: false
 
       - name: Setup Git
@@ -63,7 +63,7 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v5.2.0
         with:
-          java-version: '25.0.2+10'
+          java-version: '25.0.2'
           distribution: 'temurin'
 
       - name: Cache Maven packages
@@ -91,9 +91,9 @@ jobs:
           # Build native binary
           bundle="samm-cli-${RELEASE_VERSION}"
           mkdir ${bundle}
-          curl -Lo jre.tar.gz https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.1%2B8/OpenJDK25U-jre_aarch64_mac_hotspot_25.0.1_8.tar.gz
+          curl -Lo jre.tar.gz https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jre_aarch64_mac_hotspot_25.0.2_10.tar.gz
           tar -xvf jre.tar.gz
-          mv ./jdk-25.0.1+8-jre ./${bundle}/jre
+          mv ./jdk-25.0.2+10-jre ./${bundle}/jre
           cp tools/samm-cli/target/samm-cli-${RELEASE_VERSION}.jar ./${bundle}/
           cp tools/samm-cli/scripts/macos/run.sh ./${bundle}/
           chmod +x ./${bundle}/run.sh
@@ -139,7 +139,7 @@ jobs:
         uses: actions/setup-java@v5.2.0
         with:
           distribution: 'temurin'
-          java-version: '25.0.2+10'
+          java-version: '25.0.2'
           server-id: central
           # The following variables are defined in https://github.com/eclipse-esmf/.eclipsefdn/blob/main/otterdog/eclipse-esmf.jsonnet
           server-username: CENTRAL_SONATYPE_TOKEN_USERNAME
@@ -149,7 +149,7 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v5.2.0
         with:
-          java-version: '25.0.2+10'
+          java-version: '25.0.2'
           distribution: 'temurin'
 
       - name: Fetch Mac Apple Silicon Artifacts
