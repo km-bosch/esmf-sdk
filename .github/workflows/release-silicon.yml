@@ -1,4 +1,4 @@
-name: Release ESMF SDK
+name: Release ESMF SDK (Silicon)
 on:
   workflow_dispatch:
     inputs:
